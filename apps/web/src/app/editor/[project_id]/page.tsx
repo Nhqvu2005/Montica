@@ -7,6 +7,7 @@ import {
 	ResizableHandle,
 } from "@/components/ui/resizable";
 import { AssetsPanel } from "@/components/editor/panels/assets";
+import { AssistantPanel } from "@/components/editor/panels/assistant";
 import { PropertiesPanel } from "@/components/editor/panels/properties";
 import { Timeline } from "@/timeline/components";
 import { PreviewPanel } from "@/preview/components";
@@ -22,7 +23,6 @@ import { useEditor } from "@/editor/use-editor";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Button } from "@/components/ui/button";
-import { ChangelogNotification } from "@/changelog/components/changelog-notification";
 import {
 	createPreviewOverlayControl,
 	isPreviewOverlayVisible,
@@ -50,7 +50,6 @@ export default function Editor() {
 					</div>
 					<Onboarding />
 					<MigrationDialog />
-					<ChangelogNotification />
 				</div>
 			</EditorProvider>
 		</MobileGate>
@@ -64,7 +63,7 @@ function DegradedRendererBanner() {
 
 	return (
 		<div className="bg-accent border-b h-9 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-			<span>For the best experience, open OpenCut in Chrome.</span>
+			<span>For the best experience, open Montica in Chrome.</span>
 			<Button
 				variant="text"
 				size="icon"
@@ -151,10 +150,11 @@ function EditorLayout() {
 					className="size-full gap-[0.19rem] px-3"
 					onLayout={(sizes) => {
 						setPanel({ panel: "tools", size: sizes[0] ?? panels.tools });
-						setPanel({ panel: "preview", size: sizes[1] ?? panels.preview });
+						setPanel({ panel: "assistant", size: sizes[1] ?? panels.assistant });
+						setPanel({ panel: "preview", size: sizes[2] ?? panels.preview });
 						setPanel({
 							panel: "properties",
-							size: sizes[2] ?? panels.properties,
+							size: sizes[3] ?? panels.properties,
 						});
 					}}
 				>
@@ -165,6 +165,17 @@ function EditorLayout() {
 						className="min-w-0"
 					>
 						<AssetsPanel />
+					</ResizablePanel>
+
+					<ResizableHandle withHandle />
+
+					<ResizablePanel
+						defaultSize={panels.assistant}
+						minSize={15}
+						maxSize={40}
+						className="min-w-0"
+					>
+						<AssistantPanel />
 					</ResizablePanel>
 
 					<ResizableHandle withHandle />

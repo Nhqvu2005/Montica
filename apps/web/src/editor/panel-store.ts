@@ -4,6 +4,7 @@ import { PANEL_CONFIG } from "@/panels/layout";
 
 export interface PanelSizes {
 	tools: number;
+	assistant: number;
 	preview: number;
 	properties: number;
 	mainContent: number;
@@ -52,6 +53,7 @@ export const usePanelStore = create<PanelState>()(
 							mainContent?: number;
 							timeline?: number;
 							tools?: number;
+							assistant?: number;
 							preview?: number;
 							properties?: number;
 					  }
@@ -72,6 +74,8 @@ export const usePanelStore = create<PanelState>()(
 				return {
 					panels: {
 						tools: state.tools ?? state.toolsPanel ?? PANEL_CONFIG.panels.tools,
+						assistant:
+							state.assistant ?? PANEL_CONFIG.panels.assistant,
 						preview:
 							state.preview ??
 							state.previewPanel ??

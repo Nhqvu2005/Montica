@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const DISMISSED_KEY = "opencut-storage-persist-dismissed";
+const DISMISSED_KEY = "montica-storage-persist-dismissed";
 
 function isFirefox(): boolean {
 	return navigator.userAgent.toLowerCase().includes("firefox");

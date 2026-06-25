@@ -1,6 +1,6 @@
 "use client";
 
-import type { FrameRate } from "opencut-wasm";
+import type { FrameRate } from "montica-wasm";
 import { timelineTimeToSnappedPixels } from "@/timeline";
 import { formatRulerLabel } from "@/timeline/ruler-utils";
 
