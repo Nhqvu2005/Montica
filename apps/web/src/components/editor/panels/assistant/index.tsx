@@ -1,9 +1,15 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useAssistantStore, type ChatMessage } from "./assistant-store";
+import { useAssistantStore, type ChatMessage, type PendingAction } from "./assistant-store";
 import { LLM_MODELS, DEFAULT_LLM_CONFIGS } from "@/services/llm";
 import { nanoid } from "nanoid";
+import {
+	parseLLMToolCalls,
+	executeVibeActions,
+} from "@/vibe-engine";
+import type { VibeAction, VibeEditResult } from "@/vibe-engine";
+import { EditorCore } from "@/core";
 
 function MessageBubble({ message }: { message: ChatMessage }) {
 	const isUser = message.role === "user";
@@ -108,7 +114,7 @@ function ConfigDialog({ onClose }: { onClose: () => void }) {
 					</select>
 				</div>
 
-			<div className="mb-3">
+				<div className="mb-3">
 					<label className="mb-1 block text-xs text-muted-foreground">
 						Base URL {localConfig.provider === "ollama" ? "(e.g. http://localhost:11434)" : ""}
 					</label>
@@ -141,6 +147,96 @@ function ConfigDialog({ onClose }: { onClose: () => void }) {
 	);
 }
 
+/** Display a pending vibe action with status indicator */
+function ActionItem({ action }: { action: PendingAction }) {
+	const statusIcon = {
+		pending: "○",
+		executing: "◌",
+		done: "✓",
+		failed: "✗",
+	}[action.status];
+
+	const statusColor = {
+		pending: "text-muted-foreground",
+		executing: "text-primary",
+		done: "text-green-500",
+		failed: "text-red-500",
+	}[action.status];
+
+	return (
+		<div className={`flex items-center gap-2 text-xs ${statusColor}`}>
+			<span className="w-4 text-center">{statusIcon}</span>
+			<span>{action.label}</span>
+		</div>
+	);
+}
+
+function ActionConfirmation({
+	actions,
+	onApply,
+	onCancel,
+	isExecuting,
+}: {
+	actions: PendingAction[];
+	onApply: () => void;
+	onCancel: () => void;
+	isExecuting: boolean;
+}) {
+	return (
+		<div className="mb-3 rounded-lg border bg-muted/30 p-3">
+			<h4 className="mb-2 text-xs font-medium">Pending Changes ({actions.length})</h4>
+			<div className="mb-3 space-y-1">
+				{actions.map((action, i) => (
+					<ActionItem key={i} action={action} />
+				))}
+			</div>
+			<div className="flex gap-2">
+				<button
+					className="rounded bg-primary px-3 py-1.5 text-xs text-primary-foreground disabled:opacity-50"
+					onClick={onApply}
+					disabled={isExecuting}
+				>
+					{isExecuting ? "Applying..." : "Apply Changes"}
+				</button>
+				<button
+					className="rounded px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted"
+					onClick={onCancel}
+					disabled={isExecuting}
+				>
+					Cancel
+				</button>
+			</div>
+		</div>
+	);
+}
+
+function VibeResultBanner({ result, onUndo }: { result: VibeEditResult; onUndo: () => void }) {
+	return (
+		<div className="mb-3 rounded-lg border border-green-500/30 bg-green-500/10 p-3">
+			<h4 className="mb-1 text-xs font-medium text-green-500">
+				✓ Applied {result.succeeded} change{result.succeeded !== 1 ? "s" : ""}
+			</h4>
+			<div className="space-y-0.5">
+				{result.results.map((r, i) => (
+					<div
+						key={i}
+						className={`text-xs ${r.success ? "text-muted-foreground" : "text-red-400"}`}
+					>
+						{r.success ? "✓" : "✗"} {r.action.type}
+						{r.error && !r.success ? `: ${r.error}` : ""}
+					</div>
+				))}
+			</div>
+			<button
+				className="mt-2 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+				onClick={onUndo}
+			>
+				↩ Undo
+			</button>
+		</div>
+	);
+}
+
 export function AssistantPanel() {
 	const {
 		messages,
@@ -151,17 +247,68 @@ export function AssistantPanel() {
 		config,
 		isConfigOpen,
 		setConfigOpen,
+		pendingActions,
+		setPendingActions,
+		updateActionStatus,
+		clearPendingActions,
+		vibeResult,
+		setVibeResult,
 	} = useAssistantStore();
 
 	const [input, setInput] = useState("");
 	const [streamingContent, setStreamingContent] = useState("");
+	const [isExecuting, setIsExecuting] = useState(false);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 
 	// Auto-scroll to bottom
 	useEffect(() => {
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-	}, [messages, streamingContent]);
+	}, [messages, streamingContent, pendingActions, vibeResult]);
+
+	/** Apply pending actions via vibe engine */
+	const handleApplyActions = useCallback(() => {
+		if (pendingActions.length === 0) return;
+
+		setIsExecuting(true);
+
+		// Mark all as executing
+		pendingActions.forEach((_, i) => updateActionStatus(i, "executing"));
+
+		try {
+			const editor = EditorCore.getInstance();
+			const actions = pendingActions.map((pa) => {
+				return { type: pa.type, params: pa.params } as VibeAction;
+			});
+
+			const result = executeVibeActions(actions, editor);
+
+			// Update status per action
+			result.results.forEach((r, i) => {
+				updateActionStatus(i, r.success ? "done" : "failed");
+			});
+
+			setVibeResult(result);
+		} catch (error) {
+			console.error("[Vibe] Execution error:", error);
+		} finally {
+			setIsExecuting(false);
+		}
+	}, [pendingActions, updateActionStatus, setVibeResult]);
+
+	const handleUndoVibe = useCallback(() => {
+		try {
+			const editor = EditorCore.getInstance();
+			editor.command.undo();
+		} catch (error) {
+			console.error("[Vibe] Undo error:", error);
+		}
+		setVibeResult(null);
+	}, [setVibeResult]);
+
+	const handleCancelActions = useCallback(() => {
+		clearPendingActions();
+	}, [clearPendingActions]);
 
 	const handleSend = useCallback(async () => {
 		const text = input.trim();
@@ -178,6 +325,8 @@ export function AssistantPanel() {
 		addMessage(userMessage);
 		setStreaming(true);
 		setStreamingContent("");
+		setPendingActions([]);
+		setVibeResult(null);
 
 		try {
 			const response = await fetch("/api/llm/chat", {
@@ -207,6 +356,10 @@ export function AssistantPanel() {
 			const decoder = new TextDecoder();
 			let fullContent = "";
 			let buffer = "";
+			const collectedToolCalls: Array<{
+				name: string;
+				arguments: Record<string, unknown>;
+			}> = [];
 
 			while (true) {
 				const { done, value } = await reader.read();
@@ -226,6 +379,8 @@ export function AssistantPanel() {
 							if (parsed.type === "text" && parsed.content) {
 								fullContent += parsed.content;
 								setStreamingContent(fullContent);
+							} else if (parsed.type === "tool_call" && parsed.toolCall) {
+								collectedToolCalls.push(parsed.toolCall);
 							} else if (parsed.type === "error") {
 								throw new Error(parsed.error);
 							}
@@ -237,6 +392,7 @@ export function AssistantPanel() {
 				}
 			}
 
+			// Show assistant text message if there was any
 			if (fullContent) {
 				const assistantMessage: ChatMessage = {
 					id: nanoid(),
@@ -245,6 +401,20 @@ export function AssistantPanel() {
 					timestamp: Date.now(),
 				};
 				addMessage(assistantMessage);
+			}
+
+			// Check for tool calls and convert to pending actions
+			if (collectedToolCalls.length > 0) {
+				const vibeActions = parseLLMToolCalls(collectedToolCalls);
+				if (vibeActions.length > 0) {
+					const pendingItems: PendingAction[] = vibeActions.map((a) => ({
+						type: a.type,
+						params: a.params as Record<string, unknown>,
+						status: "pending",
+						label: actionToLabel(a),
+					}));
+					setPendingActions(pendingItems);
+				}
 			}
 		} catch (error) {
 			const errorMessage =
@@ -260,7 +430,29 @@ export function AssistantPanel() {
 			setStreaming(false);
 			setStreamingContent("");
 		}
-	}, [input, isStreaming, config, messages, addMessage, setStreaming]);
+	}, [input, isStreaming, config, messages, addMessage, setStreaming, setPendingActions, setVibeResult]);
+
+	/** Convert a VibeAction to a human-readable label */
+	function actionToLabel(action: VibeAction): string {
+		switch (action.type) {
+			case "apply_effect":
+				return `Apply ${action.params.effectType} effect`;
+			case "add_transition":
+				return `Add ${action.params.transitionType} transition`;
+			case "set_property":
+				return `Set ${action.params.property} to ${action.params.value}`;
+			case "add_text":
+				return `Add text: "${action.params.text.slice(0, 30)}"`;
+			case "set_color_grade":
+				return `Apply color grading${action.params.look ? ` (${action.params.look})` : ""}`;
+			case "apply_template":
+				return `Apply "${action.params.templateId}" style`;
+			case "batch":
+				return `Batch (${action.params.actions?.length ?? 0} actions)`;
+			default:
+				return "Unknown action";
+		}
+	}
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
 		if (e.key === "Enter" && !e.shiftKey) {
@@ -269,7 +461,7 @@ export function AssistantPanel() {
 		}
 	};
 
-	const isEmpty = messages.length === 0;
+	const isEmpty = messages.length === 0 && pendingActions.length === 0 && !vibeResult;
 
 	return (
 		<div className="panel bg-background relative flex h-full flex-col overflow-hidden rounded-sm border">
@@ -311,8 +503,8 @@ export function AssistantPanel() {
 							{[
 								"Make this clip cinematic",
 								"Add a glitch effect",
-								"Apply cyberpunk style",
-								"Add text overlay centered",
+								"Apply Montica Cyan style",
+								"Remove background (chroma key)",
 							].map((suggestion) => (
 								<button
 									key={suggestion}
@@ -332,6 +524,35 @@ export function AssistantPanel() {
 						{messages.map((msg) => (
 							<MessageBubble key={msg.id} message={msg} />
 						))}
+
+						{/* Pending actions confirmation */}
+						{pendingActions.length > 0 && !isExecuting && (
+							<ActionConfirmation
+								actions={pendingActions}
+								onApply={handleApplyActions}
+								onCancel={handleCancelActions}
+								isExecuting={isExecuting}
+							/>
+						)}
+
+						{/* Vibe execution progress */}
+						{pendingActions.length > 0 && isExecuting && (
+							<div className="mb-3 rounded-lg border bg-muted/30 p-3">
+								<h4 className="mb-2 text-xs font-medium">Executing...</h4>
+								<div className="space-y-1">
+									{pendingActions.map((action, i) => (
+										<ActionItem key={i} action={action} />
+									))}
+								</div>
+							</div>
+						)}
+
+						{/* Vibe result */}
+						{vibeResult && (
+							<VibeResultBanner result={vibeResult} onUndo={handleUndoVibe} />
+						)}
+
+						{/* Streaming text */}
 						{isStreaming && streamingContent && (
 							<div className="flex justify-start mb-3">
 								<div className="max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed bg-muted text-muted-foreground">

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { VibeEditResult } from "@/vibe-engine";
 
 export interface ChatMessage {
 	id: string;
@@ -12,6 +13,13 @@ export interface AssistantConfig {
 	apiKey: string;
 	model: string;
 	baseUrl: string;
+}
+
+export interface PendingAction {
+	type: string;
+	params: Record<string, unknown>;
+	status: "pending" | "executing" | "done" | "failed";
+	label: string;
 }
 
 const DEFAULT_CONFIG: AssistantConfig = {
@@ -34,6 +42,16 @@ interface AssistantState {
 	setConfig: (config: Partial<AssistantConfig>) => void;
 	isConfigOpen: boolean;
 	setConfigOpen: (open: boolean) => void;
+
+	// Vibe actions (pending tool calls)
+	pendingActions: PendingAction[];
+	setPendingActions: (actions: PendingAction[]) => void;
+	updateActionStatus: (index: number, status: PendingAction["status"]) => void;
+	clearPendingActions: () => void;
+
+	// Vibe result
+	vibeResult: VibeEditResult | null;
+	setVibeResult: (result: VibeEditResult | null) => void;
 }
 
 export const useAssistantStore = create<AssistantState>()((set) => ({
@@ -43,7 +61,7 @@ export const useAssistantStore = create<AssistantState>()((set) => ({
 	addMessage: (msg) =>
 		set((state) => ({ messages: [...state.messages, msg] })),
 	setStreaming: (streaming) => set({ isStreaming: streaming }),
-	clearMessages: () => set({ messages: [] }),
+	clearMessages: () => set({ messages: [], pendingActions: [], vibeResult: null }),
 
 	// Config
 	config: DEFAULT_CONFIG,
@@ -51,4 +69,19 @@ export const useAssistantStore = create<AssistantState>()((set) => ({
 		set((state) => ({ config: { ...state.config, ...partial } })),
 	isConfigOpen: false,
 	setConfigOpen: (open) => set({ isConfigOpen: open }),
+
+	// Vibe state
+	pendingActions: [],
+	setPendingActions: (actions) => set({ pendingActions: actions }),
+	updateActionStatus: (index, status) =>
+		set((state) => ({
+			pendingActions: state.pendingActions.map((a, i) =>
+				i === index ? { ...a, status } : a,
+			),
+		})),
+	clearPendingActions: () => set({ pendingActions: [] }),
+
+	// Vibe result
+	vibeResult: null,
+	setVibeResult: (result) => set({ vibeResult: result }),
 }));

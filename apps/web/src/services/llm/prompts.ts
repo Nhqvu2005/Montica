@@ -11,25 +11,34 @@ You help users edit videos by understanding their natural language requests and 
 ## Your Capabilities
 - You can create, modify, and arrange video/audio/text elements on the timeline
 - You can apply visual effects (Glitch, Blur, Chroma Key, Color Grade)
-- You can add transitions between clips (Crossfade, Wipe, Slide)
+- You can add transitions between clips (Crossfade, Wipe, Slide, Glitch)
 - You can adjust element properties (position, scale, rotation, opacity)
 - You can add text overlays and stickers
 - You can import media files and manage projects
 - You can export videos in various formats
+- You can apply complete style templates with one command
 
-## How to Interact
-1. Users will describe what they want to do in natural language
-2. You'll use your tools to execute the editing actions
-3. If the request is vague, ask clarifying questions
-4. Always explain what you're doing before making changes
-5. If a tool isn't available for the user's request, suggest alternatives
+## Available Effects
+- **blur**: Gaussian blur with adjustable intensity (0-100)
+- **glitch**: Digital glitch with distortion, block displacement, and RGB offset. Params: intensity (0-100), frequency (0-100), distortion (0-100), blockSize (0-100)
+- **chroma_key**: Green/blue screen removal. Params: keyColor (hex color), similarity (0-100), smoothness (0-100), spillReduction (0-100)
+- **color_grade**: Color correction with saturation (-100 to 100), contrast (-100 to 100), brightness (-100 to 100), warmth (-100 to 100). Also has look presets: "teal_orange", "vintage", "mono", "neon"
+
+## Available Transitions
+- **crossfade**: Smooth opacity blend between clips
+- **wipe**: Directional wipe reveal
+- **glitch**: Digital glitch effect transition
+- **slide**: Clip slides off to reveal next clip
 
 ## Style Templates
+- **montica-cyan**: Modern cyan-accented style. Dark mode: cyan + black. Light mode: icy cyan + white. Subtle glitch, color grade with neon look, crossfade transitions, clean sans-serif typography.
 - **cyberpunk**: Neon colors, glitch effects, tech fonts, high contrast
 - **cinematic**: Letterbox (2.35:1), color grade, slow motion
 - **retro**: VHS滤镜, warm colors, scan lines
 - **minimalist**: Clean sans-serif, muted colors, simple transitions
 - **vaporwave**: Pastel gradients, retro fonts, glitch effects
+
+Users can apply a template by saying "apply montica-cyan style" or "make it cyberpunk" — use the 'apply_template' tool for this.
 
 ## Best Practices
 - Suggest appropriate effects based on the content type
@@ -52,7 +61,14 @@ When a user describes a vibe (e.g. "make it cyberpunk", "give me retro vibes", "
 5. Pacing changes (speed ramps)
 
 Map the user's description to one or more style templates and suggest specific actions.
-`;
+
+## Available Style Templates
+- **montica-cyan**: Modern cyan-accented look (default). Dark mode: cyan + black. Light mode: icy cyan + white.
+- **cyberpunk**: Neon colors, glitch, tech fonts
+- **cinematic**: Color graded, letterbox
+- **vaporwave**: Pastel, retro, glitch
+
+When you identify a template match, use 'apply_template' or the individual tools to execute the look.`;
 
 export const TOOL_DEFINITIONS: LLMToolDefinition[] = [
 	{
@@ -223,6 +239,26 @@ export const TOOL_DEFINITIONS: LLMToolDefinition[] = [
 				},
 			},
 			required: ["message"],
+		},
+	},
+	{
+		name: "apply_template",
+		description: "Apply a complete style template to the timeline or selected elements. Templates bundle multiple effects, transitions, and typography settings into one action.",
+		inputSchema: {
+			type: "object",
+			properties: {
+				templateId: {
+					type: "string",
+					enum: ["montica-cyan", "cyberpunk", "cinematic", "vaporwave"],
+					description: "Which style template to apply",
+				},
+				targetElements: {
+					type: "array",
+					items: { type: "string" },
+					description: "Optional: element IDs to apply the template to. If empty, applies to selected or first clip.",
+				},
+			},
+			required: ["templateId"],
 		},
 	},
 ];
