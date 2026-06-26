@@ -147,7 +147,7 @@ export class RendererManager {
 		onProgress?: ({ progress }: { progress: number }) => void;
 		onCancel?: () => boolean;
 	}): Promise<ExportResult> {
-		const { format, quality, fps, includeAudio } = options;
+		const { format, quality, fps, includeAudio, resolution: exportResolution } = options;
 
 		try {
 			const tracks = this.editor.scenes.getActiveScene().tracks;
@@ -165,6 +165,16 @@ export class RendererManager {
 
 			const exportFps = fps ?? activeProject.settings.fps;
 			const canvasSize = activeProject.settings.canvasSize;
+
+			// Apply resolution scaling if specified
+			const resolution = exportResolution ?? {
+				width: canvasSize.width,
+				height: canvasSize.height,
+				label: "Source",
+				scale: 1,
+			};
+			const exportWidth = Math.round(canvasSize.width * resolution.scale);
+			const exportHeight = Math.round(canvasSize.height * resolution.scale);
 
 			let audioBuffer: AudioBuffer | null = null;
 			if (includeAudio) {
@@ -185,8 +195,8 @@ export class RendererManager {
 			});
 
 			const exporter = new SceneExporter({
-				width: canvasSize.width,
-				height: canvasSize.height,
+				width: exportWidth,
+				height: exportHeight,
 				fps: exportFps,
 				format,
 				quality,

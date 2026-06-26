@@ -9,6 +9,7 @@ import { GraphicNode } from "./nodes/graphic-node";
 import { ColorNode } from "./nodes/color-node";
 import { BlurBackgroundNode } from "./nodes/blur-background-node";
 import { EffectLayerNode } from "./nodes/effect-layer-node";
+import { TransitionNode } from "./nodes/transition-node";
 import type { AnyBaseNode } from "./nodes/base-node";
 import type { TBackground, TCanvasSize } from "@/project/types";
 import { DEFAULT_BACKGROUND_BLUR_INTENSITY } from "@/background/blur";
@@ -17,6 +18,7 @@ import {
 	readBlendModeFromParams,
 	readOpacityFromParams,
 } from "@/rendering";
+import type { TransitionInstance } from "@/transitions/types";
 
 const PREVIEW_MAX_IMAGE_SIZE = 2048;
 
@@ -40,15 +42,25 @@ function buildTrackNodes({
 	mediaMap: Map<string, MediaAsset>;
 	canvasSize: TCanvasSize;
 	isPreview?: boolean;
-}): AnyBaseNode[] {
+}): {
+	nodes: AnyBaseNode[];
+	nodeMap: Map<string, AnyBaseNode>;
+} {
 	const nodes: AnyBaseNode[] = [];
+	const nodeMap = new Map<string, AnyBaseNode>();
 
 	for (const track of tracks) {
 		const elements = getVisibleSortedElements({ track });
 
 		for (const element of elements) {
+			// Helper to track element → node mapping for transition lookup
+			const addWithMap = (node: AnyBaseNode) => {
+					nodes.push(node);
+					nodeMap.set(element.id, node);
+				};
+
 			if (element.type === "effect") {
-				nodes.push(
+				addWithMap(
 					new EffectLayerNode({
 						effectType: element.effectType,
 						effectParams: element.params,
@@ -66,7 +78,7 @@ function buildTrackNodes({
 				}
 
 				if (element.type === "video" && mediaAsset.type === "video") {
-					nodes.push(
+					addWithMap(
 						new VideoNode({
 							mediaId: mediaAsset.id,
 							url: mediaAsset.url,
@@ -86,7 +98,7 @@ function buildTrackNodes({
 					);
 				}
 				if (element.type === "image" && mediaAsset.type === "image") {
-					nodes.push(
+					addWithMap(
 						new ImageNode({
 							url: mediaAsset.url,
 							duration: element.duration,
@@ -108,7 +120,7 @@ function buildTrackNodes({
 			}
 
 			if (element.type === "text") {
-				nodes.push(
+				addWithMap(
 					new TextNode({
 						...element,
 						transform: buildTransformFromParams({ params: element.params }),
@@ -123,7 +135,7 @@ function buildTrackNodes({
 			}
 
 			if (element.type === "sticker") {
-				nodes.push(
+				addWithMap(
 					new StickerNode({
 						stickerId: element.stickerId,
 						intrinsicWidth: element.intrinsicWidth,
@@ -142,7 +154,7 @@ function buildTrackNodes({
 			}
 
 			if (element.type === "graphic") {
-				nodes.push(
+				addWithMap(
 					new GraphicNode({
 						definitionId: element.definitionId,
 						params: element.params,
@@ -221,6 +233,7 @@ export type BuildSceneParams = {
 	duration: number;
 	background: TBackground;
 	isPreview?: boolean;
+	transitions?: TransitionInstance[];
 };
 
 export function buildScene({
@@ -230,6 +243,7 @@ export function buildScene({
 	duration,
 	background,
 	isPreview,
+	transitions = [],
 }: BuildSceneParams) {
 	const rootNode = new RootNode({ duration });
 	const mediaMap = new Map(mediaAssets.map((m) => [m.id, m]));
@@ -241,7 +255,7 @@ export function buildScene({
 	const orderedTracksBottomToTop = visibleTracks.slice().reverse();
 	const mainTrack = tracks.main.hidden ? undefined : tracks.main;
 
-	const allNodes = buildTrackNodes({
+	const { nodes: allNodes, nodeMap } = buildTrackNodes({
 		tracks: orderedTracksBottomToTop,
 		mediaMap,
 		canvasSize,
@@ -265,7 +279,49 @@ export function buildScene({
 		rootNode.add(new ColorNode({ color: background.color }));
 	}
 
+	// Build TransitionNodes from transitions
+	const usedNodeIds = new Set<string>();
+	for (const transition of transitions) {
+		if (!transition.enabled) continue;
+		if (!transition.clipBId) continue;
+
+		const nodeA = nodeMap.get(transition.clipAId);
+		const nodeB = nodeMap.get(transition.clipBId);
+		if (!nodeA || !nodeB) continue;
+
+		const aParams = (nodeA as unknown as { params: { timeOffset: number; duration: number } }).params;
+		const bParams = (nodeB as unknown as { params: { timeOffset: number; duration: number } }).params;
+		if (!aParams || !bParams) continue;
+
+		const aStart = aParams.timeOffset;
+		const aEnd = aStart + aParams.duration;
+		const bStart = bParams.timeOffset;
+		const bEnd = bStart + bParams.duration;
+
+		const overlapStart = Math.max(aStart, bStart);
+		const overlapEnd = Math.min(aEnd, bEnd);
+		if (overlapStart >= overlapEnd) continue;
+
+		const transitionNode = new TransitionNode({
+			transitionType: transition.type,
+			overlapStart,
+			overlapEnd,
+			direction: transition.direction,
+		});
+		transitionNode.add(nodeA);
+		transitionNode.add(nodeB);
+		rootNode.add(transitionNode);
+
+		usedNodeIds.add(transition.clipAId);
+		usedNodeIds.add(transition.clipBId);
+	}
+
+	// Add remaining nodes (not part of any transition) directly to root
 	for (const node of allNodes) {
+		// Skip nodes already nested inside TransitionNodes
+		const entry = [...nodeMap.entries()]
+			.find(([, n]) => n === node);
+		if (entry && usedNodeIds.has(entry[0])) continue;
 		rootNode.add(node);
 	}
 

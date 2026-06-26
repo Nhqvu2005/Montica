@@ -39,6 +39,10 @@ import { ImageNode, loadImageSource } from "./nodes/image-node";
 import { StickerNode, loadStickerSource } from "./nodes/sticker-node";
 import { TextNode, type ResolvedTextNodeState } from "./nodes/text-node";
 import { VideoNode } from "./nodes/video-node";
+import {
+	TransitionNode,
+	type ResolvedTransitionState,
+} from "./nodes/transition-node";
 import type {
 	ResolvedVisualNodeState,
 	ResolvedVisualSourceNodeState,
@@ -89,6 +93,8 @@ async function resolveNode({
 		node.resolved = await resolveBlurBackgroundNode({ node, context });
 	} else if (node instanceof EffectLayerNode) {
 		node.resolved = resolveEffectLayerNode({ node, context });
+	} else if (node instanceof TransitionNode) {
+		node.resolved = resolveTransitionNode({ node, context });
 	}
 
 	await Promise.all(
@@ -475,5 +481,28 @@ function resolveEffectLayerNode({
 
 	return {
 		passes,
+	};
+}
+
+function resolveTransitionNode({
+	node,
+	context,
+}: {
+	node: TransitionNode;
+	context: ResolveContext;
+}): ResolvedTransitionState | null {
+	const time = context.time;
+	const { overlapStart, overlapEnd } = node.params;
+
+	// Transition container is always resolved so its children render.
+	// Compute progress (clamped to 0-1) for the transition blend.
+	const duration = overlapEnd - overlapStart;
+	const rawProgress = duration > 0
+		? (time - overlapStart) / duration
+		: 0;
+
+	return {
+		progress: Math.max(0, Math.min(1, rawProgress)),
+		time,
 	};
 }

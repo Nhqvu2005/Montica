@@ -16,6 +16,7 @@ import { RootNode } from "../nodes/root-node";
 import { StickerNode } from "../nodes/sticker-node";
 import { renderTextToContext, TextNode } from "../nodes/text-node";
 import { VideoNode } from "../nodes/video-node";
+import { TransitionNode } from "../nodes/transition-node";
 import type { ResolvedVisualSourceNodeState } from "../nodes/visual-node";
 import type {
 	FrameDescriptor,
@@ -128,6 +129,11 @@ async function collectNode({
 			type: "sceneEffect",
 			effectPassGroups: [node.resolved.passes],
 		});
+		return;
+	}
+
+	if (node instanceof TransitionNode) {
+		await collectTransitionNode({ node, renderer, path, items, textures });
 		return;
 	}
 
@@ -562,6 +568,60 @@ function drawTransformedCanvas({
 
 function transformHash(transform: QuadTransformDescriptor): string {
 	return `${transform.centerX}:${transform.centerY}:${transform.width}:${transform.height}:${transform.rotationDegrees}:${transform.flipX ? 1 : 0}:${transform.flipY ? 1 : 0}`;
+}
+
+async function collectTransitionNode({
+	node,
+	renderer,
+	path,
+	items,
+	textures,
+}: {
+	node: TransitionNode;
+	renderer: CanvasRenderer;
+	path: string;
+	items: FrameItemDescriptor[];
+	textures: Map<string, TextureUploadDescriptor>;
+}): Promise<void> {
+	const resolved = node.resolved;
+	if (!resolved) return;
+
+	const time = resolved.time;
+	const { overlapStart, overlapEnd } = node.params;
+	const progress = resolved.progress;
+
+	if (node.children.length < 2) return;
+	const [childA, childB] = node.children;
+
+	const isBeforeTransition = time < overlapStart;
+	const isAfterTransition = time > overlapEnd;
+
+	if (isBeforeTransition) {
+		// Only child A visible at full opacity
+		await collectNode({ node: childA, renderer, path: `${path}:a`, items, textures });
+	} else if (isAfterTransition) {
+		// Only child B visible at full opacity
+		await collectNode({ node: childB, renderer, path: `${path}:b`, items, textures });
+	} else {
+		// During transition: crossfade
+		// Child A layers at full opacity (B blends on top via compositor)
+		const aItems: FrameItemDescriptor[] = [];
+		await collectNode({ node: childA, renderer, path: `${path}:a`, items: aItems, textures });
+		for (const item of aItems) {
+			items.push(item);
+		}
+
+		// Child B layers at opacity = progress (creates crossfade when composited over A)
+		const bItems: FrameItemDescriptor[] = [];
+		await collectNode({ node: childB, renderer, path: `${path}:b`, items: bItems, textures });
+		for (const item of bItems) {
+			if (item.type === "layer") {
+				items.push({ ...item, opacity: item.opacity * progress });
+			} else {
+				items.push(item);
+			}
+		}
+	}
 }
 
 // Stable identity key for CanvasImageSource. Using a WeakMap → counter keeps

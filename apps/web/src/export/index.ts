@@ -18,6 +18,14 @@ export interface ExportOptions {
 	quality: ExportQuality;
 	fps?: FrameRate;
 	includeAudio?: boolean;
+	resolution?: ExportResolution;
+}
+
+export interface ExportResolution {
+	width: number;
+	height: number;
+	label: string;
+	scale: number; // relative to project canvas size (1 = full res, 0.5 = half, etc.)
 }
 
 export interface ExportResult {
