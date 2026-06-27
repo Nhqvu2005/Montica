@@ -1,10 +1,10 @@
 <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_10_2)">
-<path d="M32 9.37305V22.627L22.627 32H9.37305L0 22.627V9.37305L9.37305 0H22.627L32 9.37305ZM8 8V24H24V8H8Z" fill="white"/>
-</g>
-<defs>
-<clipPath id="clip0_10_2">
-<rect width="32" height="32" fill="white"/>
-</clipPath>
-</defs>
+  <defs>
+    <linearGradient id="mIconGrad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="100%" stop-color="#00B8D4"/>
+    </linearGradient>
+  </defs>
+  <path d="M6 26V6L16 16L26 6V26" stroke="url(#mIconGrad)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <rect x="14" y="14" width="4" height="4" rx="1" transform="rotate(45 16 16)" fill="#00E5FF" opacity="0.7"/>
 </svg>

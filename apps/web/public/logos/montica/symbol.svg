@@ -1,15 +1,13 @@
 <svg width="400" height="400" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_16_39)">
-<mask id="mask0_16_39" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="400" height="400">
-<path d="M400 0H0V400H400V0Z" fill="white"/>
-</mask>
-<g mask="url(#mask0_16_39)">
-<path d="M400 117.163V282.838L282.838 400H117.163L0 282.838V117.163L117.163 0H282.838L400 117.163ZM100 100V300H300V100H100Z" fill="black"/>
-</g>
-</g>
-<defs>
-<clipPath id="clip0_16_39">
-<rect width="400" height="400" fill="white"/>
-</clipPath>
-</defs>
+  <!-- Icy Cyan M Monogram - geometric folded design -->
+  <defs>
+    <linearGradient id="mGrad" x1="0" y1="0" x2="400" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="100%" stop-color="#00B8D4"/>
+    </linearGradient>
+  </defs>
+  <!-- Left leg -->
+  <path d="M80 320V80L200 200L320 80V320" stroke="url(#mGrad)" stroke-width="48" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Accent diamond -->
+  <rect x="180" y="180" width="40" height="40" rx="4" transform="rotate(45 200 200)" fill="#00E5FF" opacity="0.6"/>
 </svg>

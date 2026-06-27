@@ -58,7 +58,7 @@ export function Header() {
 								<Image
 									src={DEFAULT_LOGO_URL}
 									alt="Montica Logo"
-									className="invert dark:invert-0"
+									className="opacity-90"
 									width={32}
 									height={32}
 								/>

@@ -1,11 +1,10 @@
 <svg width="400" height="400" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_16_48)">
-<path d="M400 0H0V400H400V0Z" fill="white"/>
-<path d="M303.614 160.492V244.327L244.327 303.614H160.492L101.205 244.327V160.492L160.492 101.205H244.327L303.614 160.492ZM151.807 151.807V253.012H253.012V151.807H151.807Z" fill="black"/>
-</g>
-<defs>
-<clipPath id="clip0_16_48">
-<rect width="400" height="400" fill="white"/>
-</clipPath>
-</defs>
+  <defs>
+    <linearGradient id="mIcon" x1="0" y1="0" x2="400" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="100%" stop-color="#00B8D4"/>
+    </linearGradient>
+  </defs>
+  <path d="M80 320V80L200 200L320 80V320" stroke="url(#mIcon)" stroke-width="48" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <rect x="180" y="180" width="40" height="40" rx="4" transform="rotate(45 200 200)" fill="#00E5FF" opacity="0.6"/>
 </svg>

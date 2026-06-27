@@ -44,7 +44,7 @@ export function Footer() {
 								alt="Montica"
 								width={24}
 								height={24}
-								className="invert dark:invert-0"
+								className="opacity-90"
 							/>
 							<span className="text-lg font-bold">Montica</span>
 						</div>
