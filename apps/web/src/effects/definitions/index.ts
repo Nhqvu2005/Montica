@@ -4,6 +4,10 @@ import { glitchEffectDefinition } from "./glitch";
 import { chromaKeyEffectDefinition } from "./chroma-key";
 import { colorGradeEffectDefinition } from "./color-grade";
 import { cropEffectDefinition } from "./crop";
+import { vignetteEffectDefinition } from "./vignette";
+import { filmGrainEffectDefinition } from "./film-grain";
+import { pixelateEffectDefinition } from "./pixelate";
+import { vhsScanlinesEffectDefinition } from "./vhs-scanlines";
 
 const defaultEffects = [
 	blurEffectDefinition,
@@ -11,6 +15,10 @@ const defaultEffects = [
 	chromaKeyEffectDefinition,
 	colorGradeEffectDefinition,
 	cropEffectDefinition,
+	vignetteEffectDefinition,
+	filmGrainEffectDefinition,
+	pixelateEffectDefinition,
+	vhsScanlinesEffectDefinition,
 ];
 
 export function registerDefaultEffects(): void {

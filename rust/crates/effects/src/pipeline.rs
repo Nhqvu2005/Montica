@@ -22,6 +22,18 @@ const COLOR_GRADE_SHADER_SOURCE: &str = include_str!("shaders/color_grade.wgsl")
 const CROP_SHADER_ID: &str = "crop";
 const CROP_SHADER_SOURCE: &str = include_str!("shaders/crop.wgsl");
 
+const VIGNETTE_SHADER_ID: &str = "vignette";
+const VIGNETTE_SHADER_SOURCE: &str = include_str!("shaders/vignette.wgsl");
+
+const FILM_GRAIN_SHADER_ID: &str = "film_grain";
+const FILM_GRAIN_SHADER_SOURCE: &str = include_str!("shaders/film_grain.wgsl");
+
+const PIXELATE_SHADER_ID: &str = "pixelate";
+const PIXELATE_SHADER_SOURCE: &str = include_str!("shaders/pixelate.wgsl");
+
+const VHS_SCANLINES_SHADER_ID: &str = "vhs_scanlines";
+const VHS_SCANLINES_SHADER_SOURCE: &str = include_str!("shaders/vhs_scanlines.wgsl");
+
 pub struct ApplyEffectsOptions<'a> {
     pub source: &'a wgpu::Texture,
     pub width: u32,
@@ -138,6 +150,42 @@ impl EffectPipeline {
                     .create_shader_module(wgpu::ShaderModuleDescriptor {
                         label: Some("effects-crop-shader"),
                         source: wgpu::ShaderSource::Wgsl(CROP_SHADER_SOURCE.into()),
+                    }),
+            ),
+            (
+                VIGNETTE_SHADER_ID,
+                context
+                    .device()
+                    .create_shader_module(wgpu::ShaderModuleDescriptor {
+                        label: Some("effects-vignette-shader"),
+                        source: wgpu::ShaderSource::Wgsl(VIGNETTE_SHADER_SOURCE.into()),
+                    }),
+            ),
+            (
+                FILM_GRAIN_SHADER_ID,
+                context
+                    .device()
+                    .create_shader_module(wgpu::ShaderModuleDescriptor {
+                        label: Some("effects-film-grain-shader"),
+                        source: wgpu::ShaderSource::Wgsl(FILM_GRAIN_SHADER_SOURCE.into()),
+                    }),
+            ),
+            (
+                PIXELATE_SHADER_ID,
+                context
+                    .device()
+                    .create_shader_module(wgpu::ShaderModuleDescriptor {
+                        label: Some("effects-pixelate-shader"),
+                        source: wgpu::ShaderSource::Wgsl(PIXELATE_SHADER_SOURCE.into()),
+                    }),
+            ),
+            (
+                VHS_SCANLINES_SHADER_ID,
+                context
+                    .device()
+                    .create_shader_module(wgpu::ShaderModuleDescriptor {
+                        label: Some("effects-vhs-scanlines-shader"),
+                        source: wgpu::ShaderSource::Wgsl(VHS_SCANLINES_SHADER_SOURCE.into()),
                     }),
             ),
         ];
@@ -363,6 +411,51 @@ fn pack_effect_uniforms(
             Ok(EffectUniformBuffer {
                 resolution,
                 params0: [crop_left, crop_top, crop_right, crop_bottom],
+                params1: [0.0; 4],
+                params2: [0.0; 4],
+                params3: [0.0; 4],
+            })
+        }
+        "vignette" => {
+            let intensity = read_number_uniform(pass, "u_intensity")?;
+            let softness = read_number_uniform(pass, "u_softness")?;
+            let roundness = read_number_uniform(pass, "u_roundness")?;
+            Ok(EffectUniformBuffer {
+                resolution,
+                params0: [intensity, softness, roundness, 0.0],
+                params1: [0.0; 4],
+                params2: [0.0; 4],
+                params3: [0.0; 4],
+            })
+        }
+        "film_grain" => {
+            let intensity = read_number_uniform(pass, "u_intensity")?;
+            let scale = read_number_uniform(pass, "u_scale")?;
+            Ok(EffectUniformBuffer {
+                resolution,
+                params0: [intensity, 0.0, 0.0, 0.0],
+                params1: [scale, 0.0, 0.0, 0.0],
+                params2: [0.0; 4],
+                params3: [0.0; 4],
+            })
+        }
+        "pixelate" => {
+            let block_size = read_number_uniform(pass, "u_blockSize")?;
+            Ok(EffectUniformBuffer {
+                resolution,
+                params0: [block_size, 0.0, 0.0, 0.0],
+                params1: [0.0; 4],
+                params2: [0.0; 4],
+                params3: [0.0; 4],
+            })
+        }
+        "vhs_scanlines" => {
+            let line_thickness = read_number_uniform(pass, "u_lineThickness")?;
+            let intensity = read_number_uniform(pass, "u_intensity")?;
+            let jitter = read_number_uniform(pass, "u_jitter")?;
+            Ok(EffectUniformBuffer {
+                resolution,
+                params0: [line_thickness, intensity, jitter, 0.0],
                 params1: [0.0; 4],
                 params2: [0.0; 4],
                 params3: [0.0; 4],
