@@ -1,5 +1,6 @@
 import type { ElementAnimations } from "@/animation/types";
 import type { Effect } from "@/effects/types";
+import type { AudioEffect } from "@/media/audio-effects";
 import type { Mask } from "@/masks/types";
 import type { ParamValues } from "@/params";
 import type { MediaTime } from "@/wasm";
@@ -88,6 +89,7 @@ interface BaseAudioElement extends BaseTimelineElement {
 	type: "audio";
 	buffer?: AudioBuffer;
 	retime?: RetimeConfig;
+	audioEffects?: AudioEffect[];
 }
 
 export interface UploadAudioElement extends BaseAudioElement {
@@ -122,6 +124,7 @@ export interface VideoElement extends BaseTimelineElement {
 	retime?: RetimeConfig;
 	effects?: Effect[];
 	masks?: Mask[];
+	audioEffects?: AudioEffect[];
 }
 
 export interface ImageElement extends BaseTimelineElement {

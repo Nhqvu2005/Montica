@@ -19,6 +19,8 @@ import { canElementHaveAudio, hasMediaId } from "@/timeline/element-utils";
 import { canTrackHaveAudio } from "@/timeline";
 import { mediaSupportsAudio } from "@/media/media-utils";
 import { getSourceTimeAtClipTime, renderRetimedBuffer } from "@/retime";
+import { renderBufferWithEffects } from "@/media/audio-effects";
+import type { AudioEffect } from "@/media/audio-effects";
 import { Input, ALL_FORMATS, BlobSource, AudioBufferSink } from "mediabunny";
 import { TICKS_PER_SECOND } from "@/wasm";
 import {
@@ -671,11 +673,29 @@ export async function createTimelineAudioBuffer({
 				})
 			: undefined;
 
+		let processingBuffer = renderedBuffer ?? element.buffer;
+		const hasProcessing = !!renderedBuffer;
+
+		// Apply per-element audio effects (EQ, Compressor, Reverb, etc.)
+		const audioEffects = (
+			element.timelineElement as { audioEffects?: AudioEffect[] }
+		).audioEffects;
+		const enabledEffects = audioEffects?.filter((e) => e.enabled) ?? [];
+		if (enabledEffects.length > 0) {
+			processingBuffer = await renderBufferWithEffects({
+				audioContext: context,
+				buffer: processingBuffer,
+				effects: enabledEffects,
+			});
+		}
+
+		const isProcessed = hasProcessing || enabledEffects.length > 0;
+
 		mixAudioChannels({
 			element,
-			buffer: renderedBuffer ?? element.buffer,
-			trimStart: renderedBuffer ? 0 : element.trimStart,
-			retime: renderedBuffer ? undefined : element.retime,
+			buffer: processingBuffer,
+			trimStart: isProcessed ? 0 : element.trimStart,
+			retime: isProcessed ? undefined : element.retime,
 			outputBuffer,
 			outputLength,
 			sampleRate,

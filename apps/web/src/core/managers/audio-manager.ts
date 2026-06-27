@@ -8,6 +8,8 @@ import {
 	hasAnimatedVolume,
 } from "@/timeline/audio-state";
 import { createAudioMasteringChain } from "@/media/audio-mastering";
+import { buildAudioEffectChain } from "@/media/audio-effects";
+import type { AudioEffect } from "@/media/audio-effects";
 import {
 	getClipTimeAtSourceTime,
 	getSourceTimeAtClipTime,
@@ -288,7 +290,14 @@ export class AudioManager {
 			}
 			const clipGain = audioContext.createGain();
 			clipGain.gain.value = clip.volume;
-			node.connect(clipGain);
+			const effects = (clip.timelineElement as { audioEffects?: AudioEffect[] }).audioEffects;
+			const enabledEffects = effects?.filter((e) => e.enabled) ?? [];
+			if (enabledEffects.length > 0) {
+				const effectOutput = buildAudioEffectChain(audioContext, enabledEffects, node);
+				effectOutput.connect(clipGain);
+			} else {
+				node.connect(clipGain);
+			}
 			clipGain.connect(this.masterGain ?? audioContext.destination);
 
 			const startTimestamp =
@@ -380,7 +389,14 @@ export class AudioManager {
 		const node = audioContext.createBufferSource();
 		node.buffer = buffer;
 		const clipGain = audioContext.createGain();
-		node.connect(clipGain);
+		const effects = (clip.timelineElement as { audioEffects?: AudioEffect[] }).audioEffects;
+		const enabledEffects = effects?.filter((e) => e.enabled) ?? [];
+		if (enabledEffects.length > 0) {
+			const effectOutput = buildAudioEffectChain(audioContext, enabledEffects, node);
+			effectOutput.connect(clipGain);
+		} else {
+			node.connect(clipGain);
+		}
 		clipGain.connect(this.masterGain ?? audioContext.destination);
 
 		const startTimestamp =

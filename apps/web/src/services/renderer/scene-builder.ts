@@ -174,7 +174,7 @@ function buildTrackNodes({
 		}
 	}
 
-	return nodes;
+	return { nodes, nodeMap };
 }
 
 function buildBlurBackgroundNodes({
